@@ -44,7 +44,7 @@ error_code_t QwiicScale::calculateZeroOffset(uint8_t average_size)
 error_code_t QwiicScale::calculateCalibrationFactor(float calibration_weight_grams, uint8_t average_size)
 {
   int32_t avg_reading = 0;
-  error_code_t err = getAverageReading(average_size, &avg_reading);
+  error_code_t err = getAverageReading(&avg_reading, average_size);
   if (err) {
     isCalibrated = false;
     return err;
