@@ -29,7 +29,7 @@ const __FlashStringHelper* QwiicScale::strerror_f(error_code_t err) {
 error_code_t QwiicScale::calculateZeroOffset(uint8_t average_size)
 {
   int32_t avg_offset = 0;
-  error_code_t err = getAverageReading(average_size, &avg_offset);
+  error_code_t err = getAverageReading(&avg_offset, average_size);
   if (err) {
     isCalibrated = false;
     return err;
