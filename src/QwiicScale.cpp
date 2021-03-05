@@ -138,7 +138,9 @@ error_code_t QwiicScale::readCalibration(void)
 //Record the current system settings to EEPROM
 void QwiicScale::storeCalibration(void)
 {
-  //Get various values from the library and commit them to NVM
-  EEPROM.put(calFactorLocation, getCalibrationFactor());
-  EEPROM.put(zeroOffsetLocation, getZeroOffset());
+  if (useEEPROM){
+      //Get various values from the library and commit them to NVM
+      EEPROM.put(calFactorLocation, getCalibrationFactor());
+      EEPROM.put(zeroOffsetLocation, getZeroOffset());
+  }
 }
