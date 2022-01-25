@@ -165,11 +165,14 @@ typedef enum
 
 typedef int error_code_t;
 #define NAU7802_OK               0
-#define NAU7802_I2C_ACK_ERROR   -1
-#define NAU7802_I2C_ERROR       -2
-#define NAU7802_TIMEOUT_ERROR   -3
-#define NAU7802_POWER_UP_ERROR  -4
-#define NAU7802_CAL_AFE_ERROR   -5
+#define NAU7802_I2C_DATA_TOO_BIG_ERROR -1
+#define NAU7802_I2C_NACK_ADDR_ERROR -2
+#define NAU7802_I2C_NACK_DATA_ERROR -3
+#define NAU7802_I2C_ERROR   -4
+#define NAU7802_I2C_NO_DATA_ERROR -5
+#define NAU7802_TIMEOUT_ERROR   -6
+#define NAU7802_POWER_UP_ERROR  -7
+#define NAU7802_CAL_AFE_ERROR   -8
 
 class NAU7802
 {
@@ -178,7 +181,7 @@ class NAU7802
     error_code_t begin(TwoWire &wirePort = Wire, bool reset = true); //Check communication and initialize sensor
     bool isConnected();                                      //Returns true if device acks at the I2C address
 
-    bool available();                          //Returns true if Cycle Ready bit is set (conversion is complete)
+    error_code_t available(bool *ready);                          //Returns true if Cycle Ready bit is set (conversion is complete)
 
     //Returns 24-bit reading. Assumes CR Cycle Ready bit (ADC conversion complete) has been checked by .available()
     error_code_t getReading(int32_t *result);

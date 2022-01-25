@@ -42,7 +42,7 @@ error_code_t NAU7802::begin(TwoWire &wirePort, bool initialize)
   {
     //There are rare times when the sensor is occupied and doesn't ack. A 2nd try resolves this.
     if (isConnected() == false)
-      return (NAU7802_I2C_ACK_ERROR);
+      return (NAU7802_I2C_ERROR);
   }
 
   error_code_t err = NAU7802_OK;
@@ -103,16 +103,17 @@ bool NAU7802::isConnected()
 }
 
 //Returns true if Cycle Ready bit is set (conversion is complete)
-bool NAU7802::available()
+error_code_t NAU7802::available(bool *ready)
 {
   uint8_t value;
   error_code_t err = getBit(NAU7802_PU_CTRL_CR, NAU7802_PU_CTRL, &value);
 
   if (err) {
-    return false;
+    return err;
   }
 
-  return bool(value);
+  *ready = bool(value);
+  return NAU7802_OK;
 }
 
 //Calibrate analog front end of system. Returns true if CAL_ERR bit is 0 (no error)
@@ -138,8 +139,9 @@ NAU7802_Cal_Status NAU7802::calAFEStatus()
 {
   uint8_t value;
   error_code_t err = getBit(NAU7802_CTRL2_CALS, NAU7802_CTRL2, &value);
+
   if (err)
-    return NAU7802_CAL_FAILURE;
+    return err;
 
   if (value)
   {
@@ -148,7 +150,7 @@ NAU7802_Cal_Status NAU7802::calAFEStatus()
 
   err = getBit(NAU7802_CTRL2_CAL_ERROR, NAU7802_CTRL2, &value);
   if (err)
-    return NAU7802_CAL_FAILURE;
+    return err;
 
   if (value)
   {
@@ -243,7 +245,7 @@ error_code_t NAU7802::powerDown()
   return (clearBit(NAU7802_PU_CTRL_PUA, NAU7802_PU_CTRL));
 }
 
-//Resets all registers to Power Of Defaults
+//Resets all registers to Power Off Defaults
 error_code_t NAU7802::reset()
 {
   error_code_t err = setBit(NAU7802_PU_CTRL_RR, NAU7802_PU_CTRL); //Set RR
@@ -309,8 +311,19 @@ error_code_t NAU7802::getReading(int32_t *result)
 {
   i2cPort->beginTransmission(deviceAddress);
   i2cPort->write(NAU7802_ADCO_B2);
-  if (i2cPort->endTransmission() != 0)
-    return NAU7802_I2C_ACK_ERROR;
+  byte ret = i2cPort->endTransmission();
+  if (ret == 1){
+    return NAU7802_I2C_DATA_TOO_BIG_ERROR;
+  }
+  else if (ret == 2){
+    return NAU7802_I2C_NACK_ADDR_ERROR;
+  }
+  else if (ret == 3){
+    return NAU7802_I2C_NACK_DATA_ERROR;
+  }
+  else if (ret == 4){
+    return NAU7802_I2C_ERROR;
+  }
 
   i2cPort->requestFrom((uint8_t)deviceAddress, (uint8_t)3);
 
@@ -333,7 +346,7 @@ error_code_t NAU7802::getReading(int32_t *result)
     return NAU7802_OK;
   }
 
-  return NAU7802_I2C_ERROR;
+  return NAU7802_I2C_NO_DATA_ERROR;
 }
 
 error_code_t NAU7802::getAverageReading(int32_t *average, uint8_t average_size)
@@ -342,11 +355,17 @@ error_code_t NAU7802::getAverageReading(int32_t *average, uint8_t average_size)
   int32_t value;
   long total = 0;
   uint8_t samplesAquired = 0;
+  bool ready = false;
 
   unsigned long startTime = millis();
   while (samplesAquired < average_size)
   {
-    if (available() == true)
+    err = available(&ready);
+    if (err) {
+      return err;
+    }
+
+    if (ready == true)
     {
 
       if (err = getReading(&value)) {
@@ -355,9 +374,10 @@ error_code_t NAU7802::getAverageReading(int32_t *average, uint8_t average_size)
 
       total += value;
       samplesAquired++;
+      ready = false;
     }
 
-    if (millis() - startTime > 1000)
+    if ((millis() - startTime) > 1000)
       return NAU7802_TIMEOUT_ERROR;
   }
 
@@ -422,8 +442,20 @@ error_code_t NAU7802::getRegister(uint8_t registerAddress, uint8_t *registerCont
 {
   i2cPort->beginTransmission(deviceAddress);
   i2cPort->write(registerAddress);
-  if (i2cPort->endTransmission() != 0)
-    return NAU7802_I2C_ACK_ERROR; //Sensor did not ACK
+
+  byte ret = i2cPort->endTransmission();
+  if (ret == 1){
+    return NAU7802_I2C_DATA_TOO_BIG_ERROR;
+  }
+  else if (ret == 2){
+    return NAU7802_I2C_NACK_ADDR_ERROR;
+  }
+  else if (ret == 3){
+    return NAU7802_I2C_NACK_DATA_ERROR;
+  }
+  else if (ret == 4){
+    return NAU7802_I2C_ERROR;
+  }
 
   i2cPort->requestFrom((uint8_t)deviceAddress, (uint8_t)1);
 
@@ -432,7 +464,7 @@ error_code_t NAU7802::getRegister(uint8_t registerAddress, uint8_t *registerCont
     return NAU7802_OK;
   }
 
-  return NAU7802_I2C_ERROR;
+  return NAU7802_I2C_NO_DATA_ERROR;
 }
 
 //Send a given value to be written to given address
@@ -442,7 +474,20 @@ error_code_t NAU7802::setRegister(uint8_t registerAddress, uint8_t value)
   i2cPort->beginTransmission(deviceAddress);
   i2cPort->write(registerAddress);
   i2cPort->write(value);
-  if (i2cPort->endTransmission() != 0)
-    return NAU7802_I2C_ACK_ERROR;
+
+  byte ret = i2cPort->endTransmission();
+  if (ret == 1){
+    return NAU7802_I2C_DATA_TOO_BIG_ERROR;
+  }
+  else if (ret == 2){
+    return NAU7802_I2C_NACK_ADDR_ERROR;
+  }
+  else if (ret == 3){
+    return NAU7802_I2C_NACK_DATA_ERROR;
+  }
+  else if (ret == 4){
+    return NAU7802_I2C_ERROR;
+  }
+
   return NAU7802_OK;
 }

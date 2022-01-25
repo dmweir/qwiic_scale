@@ -5,9 +5,15 @@ const __FlashStringHelper* QwiicScale::strerror_f(error_code_t err) {
   switch (err) {
     case SCALE_OK:
       return F("No Error.");
-    case NAU7802_I2C_ACK_ERROR:
-      return F("NAU7802 sensor did not acknowledge.");
+    case NAU7802_I2C_DATA_TOO_BIG_ERROR:
+      return F("I2C error: Data too long to fit in transmit buffer");
+    case NAU7802_I2C_NACK_ADDR_ERROR:
+      return F("I2C error: Received NACK on transmit of address.");
+    case NAU7802_I2C_NACK_DATA_ERROR:
+      return F("I2C error: Received NACK on transmit of data.");
     case NAU7802_I2C_ERROR:
+      return F("I2C error: Undefined i2c transmit error.");
+    case NAU7802_I2C_NO_DATA_ERROR:
       return F("NAU7802 sensor did not return any data.");
     case NAU7802_TIMEOUT_ERROR:
       return F("NAU7802 timeout occured collecting samples to average.");
@@ -21,6 +27,8 @@ const __FlashStringHelper* QwiicScale::strerror_f(error_code_t err) {
       return F("Unable to read zero offset from eeprom.");
     case SCALE_NOT_CALIBRATED_ERROR:
       return F("Scale is not calibrated");
+    default:
+      return F("Unknown error.");
   }
 }
 
@@ -128,6 +136,8 @@ error_code_t QwiicScale::readCalibration(void)
   if ((zeroOffset == 0) || ((calibrationFactor - 1.0) < 0.001)) {
     isCalibrated = false;
     calibrationDetected = false;
+    zeroOffset = 0;
+    calibrationFactor = 1.0f;
   }
   else
     isCalibrated = true;
@@ -143,4 +153,10 @@ void QwiicScale::storeCalibration(void)
       EEPROM.put(calFactorLocation, getCalibrationFactor());
       EEPROM.put(zeroOffsetLocation, getZeroOffset());
   }
+}
+
+void QwiicScale::readEEPROM(float* cal_factor, long *offset) {
+
+  EEPROM.get(calFactorLocation, *cal_factor);
+  EEPROM.get(zeroOffsetLocation, *offset);
 }

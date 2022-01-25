@@ -39,6 +39,7 @@ class QwiicScale : public NAU7802
     bool useEEPROM = true;
     void storeCalibration(void);
     error_code_t readCalibration(void);
+    void QwiicScale::readEEPROM(float* cal_factor, long *offset);
 
     // Flag to indicate whether settings were read from eeprom. Note: May not be valid.
     bool calibrationDetected = false;
