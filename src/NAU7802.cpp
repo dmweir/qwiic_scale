@@ -305,13 +305,39 @@ error_code_t NAU7802::getRevisionCode(uint8_t *revisionCode)
   return err;
 }
 
+byte NAU7802::i2c_write(uint8_t registerAddress, uint8_t* value) {
+  int tries = 3;
+  byte ret;
+
+  while (tries) {
+    i2cPort->beginTransmission(deviceAddress);
+    i2cPort->write(registerAddress);
+    if (value != NULL){
+      i2cPort->write(*value);
+    }
+    ret = i2cPort->endTransmission();
+
+    switch (ret){
+      case 1:
+      case 2:
+        // try again on NACK
+        tries--;
+        break;
+      default:
+        // Return everything else
+        return ret;
+    }
+  }
+
+  return ret;
+}
+
 //Returns 24-bit reading
 //Assumes CR Cycle Ready bit (ADC conversion complete) has been checked to be 1
 error_code_t NAU7802::getReading(int32_t *result)
 {
-  i2cPort->beginTransmission(deviceAddress);
-  i2cPort->write(NAU7802_ADCO_B2);
-  byte ret = i2cPort->endTransmission();
+  byte ret = i2c_write(NAU7802_ADCO_B2, NULL);
+
   if (ret == 1){
     return NAU7802_I2C_DATA_TOO_BIG_ERROR;
   }
@@ -324,6 +350,7 @@ error_code_t NAU7802::getReading(int32_t *result)
   else if (ret == 4){
     return NAU7802_I2C_ERROR;
   }
+
 
   i2cPort->requestFrom((uint8_t)deviceAddress, (uint8_t)3);
 
@@ -357,6 +384,9 @@ error_code_t NAU7802::getAverageReading(int32_t *average, uint8_t average_size)
   uint8_t samplesAquired = 0;
   bool ready = false;
 
+  // Hard-coded for 80 hz rate for now
+  unsigned long  timeout = average_size * 13;
+
   unsigned long startTime = millis();
   while (samplesAquired < average_size)
   {
@@ -377,7 +407,7 @@ error_code_t NAU7802::getAverageReading(int32_t *average, uint8_t average_size)
       ready = false;
     }
 
-    if ((millis() - startTime) > 1000)
+    if ((millis() - startTime) > timeout)
       return NAU7802_TIMEOUT_ERROR;
   }
 
@@ -440,10 +470,7 @@ error_code_t NAU7802::getBit(uint8_t bitNumber, uint8_t registerAddress, uint8_t
 //Get contents of a register
 error_code_t NAU7802::getRegister(uint8_t registerAddress, uint8_t *registerContents)
 {
-  i2cPort->beginTransmission(deviceAddress);
-  i2cPort->write(registerAddress);
-
-  byte ret = i2cPort->endTransmission();
+  byte ret = i2c_write(registerAddress, NULL);
   if (ret == 1){
     return NAU7802_I2C_DATA_TOO_BIG_ERROR;
   }
@@ -471,11 +498,9 @@ error_code_t NAU7802::getRegister(uint8_t registerAddress, uint8_t *registerCont
 //Return true if successful
 error_code_t NAU7802::setRegister(uint8_t registerAddress, uint8_t value)
 {
-  i2cPort->beginTransmission(deviceAddress);
-  i2cPort->write(registerAddress);
-  i2cPort->write(value);
 
-  byte ret = i2cPort->endTransmission();
+  byte ret = i2c_write(registerAddress, &value);
+
   if (ret == 1){
     return NAU7802_I2C_DATA_TOO_BIG_ERROR;
   }

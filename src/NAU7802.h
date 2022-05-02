@@ -216,6 +216,7 @@ class NAU7802
     error_code_t getRegister(uint8_t registerAddress, uint8_t *contents);             //Get contents of a register
     error_code_t setRegister(uint8_t registerAddress, uint8_t value); //Send a given value to be written to given address. Return true if successful
 
+    byte i2c_write(uint8_t registerAddress, uint8_t* value);
   protected:
     TwoWire *i2cPort;                   //This stores the user's requested i2c port
     const uint8_t deviceAddress = 0x2A; //Default unshifted 7-bit address of the NAU7802
